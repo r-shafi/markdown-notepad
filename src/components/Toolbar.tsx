@@ -1,4 +1,4 @@
-import { BookOpen, Command, Download, Moon, Sun, WrapText } from "lucide-react";
+import { BookOpen, Command, Download, Settings, WrapText } from "lucide-react";
 import type { Theme } from "../types";
 
 interface ToolbarProps {
@@ -8,13 +8,11 @@ interface ToolbarProps {
   onOpenPalette: () => void;
   onFormat: () => void;
   onExport: () => void;
+  onToggleSettings: () => void;
   showPreview: boolean;
   onTogglePreview: () => void;
   isMobile: boolean;
 }
-
-const isDarkTheme = (themeId: string) =>
-  !["minimal", "things"].includes(themeId);
 
 export default function Toolbar({
   themes,
@@ -23,12 +21,11 @@ export default function Toolbar({
   onOpenPalette,
   onFormat,
   onExport,
+  onToggleSettings,
   showPreview,
   onTogglePreview,
   isMobile,
 }: ToolbarProps) {
-  const dark = isDarkTheme(themeId);
-
   return (
     <header className="toolbar">
       <span className="toolbar-brand">MarkPad</span>
@@ -47,6 +44,13 @@ export default function Toolbar({
       </div>
 
       <div className="toolbar-actions">
+        <button
+          className="toolbar-btn"
+          title="Editor Settings"
+          onClick={onToggleSettings}
+        >
+          <Settings size={16} />
+        </button>
         {!isMobile && (
           <button
             className="toolbar-btn"

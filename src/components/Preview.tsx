@@ -3,6 +3,8 @@ import MarkdownIt from "markdown-it";
 import type { Options as MdOptions } from "markdown-it";
 import type Token from "markdown-it/lib/token.mjs";
 import type Renderer from "markdown-it/lib/renderer.mjs";
+import footnote from "markdown-it-footnote";
+import deflist from "markdown-it-deflist";
 import { useEffect, useRef } from "react";
 
 type RenderRule = NonNullable<Renderer["rules"][string]>;
@@ -13,25 +15,33 @@ const md: MarkdownIt = new MarkdownIt({
   linkify: true,
   typographer: true,
   highlight(str: string, lang: string): string {
+    const escapedCode = encodeURIComponent(str);
     if (lang && hljs.getLanguage(lang)) {
       try {
+        const highlighted = hljs.highlight(str, {
+          language: lang,
+          ignoreIllegals: true,
+        }).value;
         return (
-          `<pre class="hljs-pre"><code class="hljs language-${lang}">` +
-          hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-          `</code><button class="copy-btn" data-code="${encodeURIComponent(str)}" title="Copy">Copy</button></pre>`
+          `<pre class="hljs-pre"><span class="lang-badge">${lang}</span>` +
+          `<code class="hljs language-${lang}">${highlighted}</code>` +
+          `<button class="copy-btn" data-code="${escapedCode}" title="Copy">Copy</button></pre>`
         );
-      } catch {}
+      } catch {
+        // fall through
+      }
     }
     return (
       `<pre class="hljs-pre"><code class="hljs">` +
       md.utils.escapeHtml(str) +
-      `</code></pre>`
+      `</code><button class="copy-btn" data-code="${escapedCode}" title="Copy">Copy</button></pre>`
     );
   },
 });
 
 // Enable plugins
-md.enable(["table"]);
+md.use(footnote);
+md.use(deflist);
 
 // Open external links in _blank
 const defaultRender: RenderRule =
@@ -114,12 +124,12 @@ export default function Preview({ content, scrollRatio, id }: PreviewProps) {
   }, []);
 
   return (
-    <div
-      id={id}
-      ref={ref}
-      className="preview-pane"
-      // biome-ignore reason: controlled sanitized HTML from markdown-it
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <div id={id} ref={ref} className="preview-pane">
+      <div
+        className="preview-content"
+        // biome-ignore reason: controlled sanitized HTML from markdown-it
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
   );
 }
