@@ -4,46 +4,60 @@ import CommandPalette from "./components/CommandPalette";
 import Editor from "./components/Editor";
 import ExportModal from "./components/ExportModal";
 import Preview from "./components/Preview";
+import SettingsPanel from "./components/SettingsPanel";
+import StatusBar from "./components/StatusBar";
 import Toast from "./components/Toast";
 import Toolbar from "./components/Toolbar";
 import { DEFAULT_DOCUMENT } from "./defaultDocument";
 import { useCommandPalette } from "./hooks/useCommandPalette";
+import { useEditorSettings } from "./hooks/useEditorSettings";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTheme } from "./hooks/useTheme";
 import { themes } from "./themes";
-import type { CommandItem } from "./types";
+import type { CommandItem, CursorPosition } from "./types";
 import prettier from "prettier/standalone";
 import parserMarkdown from "prettier/plugins/markdown";
 
-const CONTENT_KEY = "markpad-content";
-const SPLIT_KEY = "markpad-split";
-const PREVIEW_KEY = "markpad-preview";
+const CONTENT_KEY = "markpad_content";
+const SPLIT_KEY = "markpad_split_ratio";
 
 function getDocTitle(content: string) {
   const match = content.match(/^#\s+(.+)/m);
   return match ? match[1].trim() : "document";
 }
 
+function countWords(text: string) {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
 export default function App() {
   const [content, setContent] = useState<string>(
-    () => localStorage.getItem(CONTENT_KEY) ?? DEFAULT_DOCUMENT,
+    () =>
+      localStorage.getItem(CONTENT_KEY) ??
+      localStorage.getItem("markpad-content") ??
+      DEFAULT_DOCUMENT,
   );
   const [splitRatio, setSplitRatio] = useState<number>(() =>
-    Number(localStorage.getItem(SPLIT_KEY) ?? 50),
+    Number(
+      localStorage.getItem(SPLIT_KEY) ??
+        localStorage.getItem("markpad-split") ??
+        50,
+    ),
   );
-  const [showPreview, setShowPreview] = useState<boolean>(
-    () => (localStorage.getItem(PREVIEW_KEY) ?? "true") === "true",
-  );
+  const [showPreview, setShowPreview] = useState(true);
   const [scrollRatio, setScrollRatio] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
   const [exportOpen, setExportOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [cursor, setCursor] = useState<CursorPosition>({ line: 1, col: 1 });
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const dragging = useRef(false);
   const { theme, themeId, setTheme } = useTheme();
   const palette = useCommandPalette();
+  const { settings, updateFontFamily, updateFontSize } = useEditorSettings();
 
   // Persist content
   useEffect(() => {
@@ -54,11 +68,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(SPLIT_KEY, String(splitRatio));
   }, [splitRatio]);
-
-  // Persist show preview
-  useEffect(() => {
-    localStorage.setItem(PREVIEW_KEY, String(showPreview));
-  }, [showPreview]);
 
   // Resize observer
   useEffect(() => {
@@ -84,11 +93,47 @@ export default function App() {
     });
   }, []);
 
-  const insertAtCursor = useCallback((text: string) => {
+  const insertLink = useCallback(() => {
     const view = editorRef.current?.view;
     if (!view) return;
-    const { from } = view.state.selection.main;
-    view.dispatch({ changes: { from, insert: text } });
+    const { from, to } = view.state.selection.main;
+    const selected = view.state.doc.sliceString(from, to);
+    if (selected) {
+      // Wrap selection: [selected](url)
+      const replacement = `[${selected}](url)`;
+      view.dispatch({
+        changes: { from, to, insert: replacement },
+        selection: {
+          anchor: from + selected.length + 3,
+          head: from + selected.length + 6,
+        },
+      });
+    } else {
+      // Insert [](url) with cursor between brackets
+      view.dispatch({
+        changes: { from, insert: "[](url)" },
+        selection: { anchor: from + 1 },
+      });
+    }
+  }, []);
+
+  const insertCodeBlock = useCallback(() => {
+    const view = editorRef.current?.view;
+    if (!view) return;
+    const { from, to } = view.state.selection.main;
+    const selected = view.state.doc.sliceString(from, to);
+    if (selected) {
+      const replacement = `\n\`\`\`\n${selected}\n\`\`\`\n`;
+      view.dispatch({
+        changes: { from, to, insert: replacement },
+        selection: { anchor: from + 4 },
+      });
+    } else {
+      view.dispatch({
+        changes: { from, insert: "\n```\n\n```\n" },
+        selection: { anchor: from + 5 },
+      });
+    }
   }, []);
 
   const duplicateLine = useCallback(() => {
@@ -102,21 +147,108 @@ export default function App() {
   }, []);
 
   const toggleComment = useCallback(() => {
-    wrapSelection("<!-- ", " -->");
-  }, [wrapSelection]);
+    const view = editorRef.current?.view;
+    if (!view) return;
+    const { from, to } = view.state.selection.main;
+
+    if (from === to) {
+      // No selection: toggle comment on current line
+      const line = view.state.doc.lineAt(from);
+      const text = line.text;
+      if (
+        text.trimStart().startsWith("<!--") &&
+        text.trimEnd().endsWith("-->")
+      ) {
+        const newText = text
+          .replace(/^\s*<!--\s?/, "")
+          .replace(/\s?-->\s*$/, "");
+        view.dispatch({
+          changes: { from: line.from, to: line.to, insert: newText },
+        });
+      } else {
+        view.dispatch({
+          changes: {
+            from: line.from,
+            to: line.to,
+            insert: `<!-- ${text} -->`,
+          },
+        });
+      }
+    } else {
+      const selected = view.state.doc.sliceString(from, to);
+      if (selected.startsWith("<!--") && selected.endsWith("-->")) {
+        const unwrapped = selected.slice(4, -3).trim();
+        view.dispatch({
+          changes: { from, to, insert: unwrapped },
+        });
+      } else {
+        view.dispatch({
+          changes: { from, to, insert: `<!-- ${selected} -->` },
+          selection: { anchor: from + 5, head: to + 5 },
+        });
+      }
+    }
+  }, []);
 
   const formatDoc = useCallback(async () => {
+    const view = editorRef.current?.view;
     try {
-      const formatted = await prettier.format(content, {
+      const text = view ? view.state.doc.toString() : content;
+      const cursorLine = view
+        ? view.state.doc.lineAt(view.state.selection.main.head).number
+        : 1;
+      const formatted = await prettier.format(text, {
         parser: "markdown",
         plugins: [parserMarkdown],
       });
-      setContent(formatted);
+      if (view) {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: formatted },
+        });
+        // Restore cursor to same line (clamped)
+        const targetLine = Math.min(cursorLine, view.state.doc.lines);
+        const lineInfo = view.state.doc.line(targetLine);
+        view.dispatch({
+          selection: { anchor: lineInfo.from },
+        });
+      } else {
+        setContent(formatted);
+      }
       showToast("Document formatted ✓");
     } catch {
       showToast("Format failed");
     }
   }, [content, showToast]);
+
+  const saveAsMarkdown = useCallback(() => {
+    const title = getDocTitle(content);
+    const blob = new Blob([content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9_\-]/gi, "_")}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Document saved ✓");
+  }, [content, showToast]);
+
+  const pasteAsPlainText = useCallback(async () => {
+    const view = editorRef.current?.view;
+    if (!view) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      const { from, to } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, to, insert: text },
+        selection: { anchor: from + text.length },
+      });
+    } catch {
+      // clipboard access denied
+    }
+  }, []);
 
   // Resizable split pane
   const onDividerMouseDown = useCallback((e: React.MouseEvent) => {
@@ -165,7 +297,7 @@ export default function App() {
         icon: "🔗",
         shortcut: "Ctrl+K",
         group: "Format",
-        action: () => insertAtCursor("[text](url)"),
+        action: insertLink,
       },
       {
         id: "code-block",
@@ -173,7 +305,7 @@ export default function App() {
         icon: "<>",
         shortcut: "Ctrl+Shift+K",
         group: "Format",
-        action: () => insertAtCursor("\n```\n\n```\n"),
+        action: insertCodeBlock,
       },
       {
         id: "format",
@@ -198,6 +330,22 @@ export default function App() {
         shortcut: "Ctrl+D",
         group: "Document",
         action: duplicateLine,
+      },
+      {
+        id: "save",
+        label: "Save as Markdown",
+        icon: "💾",
+        shortcut: "Ctrl+S",
+        group: "Document",
+        action: saveAsMarkdown,
+      },
+      {
+        id: "paste-plain",
+        label: "Paste as Plain Text",
+        icon: "📋",
+        shortcut: "Ctrl+Shift+V",
+        group: "Document",
+        action: pasteAsPlainText,
       },
       {
         id: "export",
@@ -226,10 +374,13 @@ export default function App() {
     ],
     [
       wrapSelection,
-      insertAtCursor,
+      insertLink,
+      insertCodeBlock,
       formatDoc,
       toggleComment,
       duplicateLine,
+      saveAsMarkdown,
+      pasteAsPlainText,
       setTheme,
     ],
   );
@@ -237,18 +388,24 @@ export default function App() {
   useKeyboardShortcuts({
     bold: () => wrapSelection("**"),
     italic: () => wrapSelection("_"),
-    insertLink: () => insertAtCursor("[text](url)"),
-    insertCodeBlock: () => insertAtCursor("\n```\n\n```\n"),
+    insertLink,
+    insertCodeBlock,
     formatDoc,
     openPalette: palette.toggle,
     exportPDF: () => setExportOpen(true),
+    saveDoc: saveAsMarkdown,
     toggleComment,
     duplicateLine,
     togglePreview: () => setShowPreview((v) => !v),
+    pasteAsPlainText,
     switchTheme: (i) => {
       if (themes[i]) setTheme(themes[i].id);
     },
   });
+
+  const onCursorChange = useCallback((pos: CursorPosition) => {
+    setCursor(pos);
+  }, []);
 
   return (
     <div className={`app-root ${isDark ? "dark" : "light"}`}>
@@ -259,9 +416,18 @@ export default function App() {
         onOpenPalette={palette.toggle}
         onFormat={formatDoc}
         onExport={() => setExportOpen(true)}
+        onToggleSettings={() => setSettingsOpen((v) => !v)}
         showPreview={showPreview}
         onTogglePreview={() => setShowPreview((v) => !v)}
         isMobile={isMobile}
+      />
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        fontFamily={settings.fontFamily}
+        fontSize={settings.fontSize}
+        onFontFamilyChange={updateFontFamily}
+        onFontSizeChange={updateFontSize}
       />
 
       {isMobile ? (
@@ -275,7 +441,10 @@ export default function App() {
                 onScroll={(top, h, ch) =>
                   setScrollRatio(h > ch ? top / (h - ch) : 0)
                 }
+                onCursorChange={onCursorChange}
                 darkMode={isDark}
+                fontFamily={settings.fontFamily}
+                fontSize={settings.fontSize}
               />
             </AnimatedPane>
             <AnimatedPane active={mobileTab === "preview"}>
@@ -286,6 +455,13 @@ export default function App() {
               />
             </AnimatedPane>
           </div>
+          <StatusBar
+            line={cursor.line}
+            col={cursor.col}
+            wordCount={countWords(content)}
+            charCount={content.length}
+            themeName={theme.name}
+          />
           <nav className="mobile-tabs">
             <button
               className={`tab-btn${mobileTab === "edit" ? " active" : ""}`}
@@ -311,7 +487,10 @@ export default function App() {
               onScroll={(top, h, ch) =>
                 setScrollRatio(h > ch ? top / (h - ch) : 0)
               }
+              onCursorChange={onCursorChange}
               darkMode={isDark}
+              fontFamily={settings.fontFamily}
+              fontSize={settings.fontSize}
             />
           </div>
           <div
@@ -331,6 +510,16 @@ export default function App() {
         </main>
       )}
 
+      {!isMobile && (
+        <StatusBar
+          line={cursor.line}
+          col={cursor.col}
+          wordCount={countWords(content)}
+          charCount={content.length}
+          themeName={theme.name}
+        />
+      )}
+
       <CommandPalette
         open={palette.open}
         onClose={palette.close}
@@ -341,6 +530,7 @@ export default function App() {
         onClose={() => setExportOpen(false)}
         previewElId="preview-pane"
         documentTitle={getDocTitle(content)}
+        onExportComplete={() => showToast("PDF exported ✓")}
       />
       <Toast message={toast} />
     </div>

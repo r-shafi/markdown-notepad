@@ -21,3 +21,8 @@ export interface CommandItem {
   group: "Document" | "Format" | "Theme" | "Export" | "View";
   action: () => void;
 }
+
+export interface CursorPosition {
+  line: number;
+  col: number;
+}
