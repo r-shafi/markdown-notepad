@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect } from "react";
 import { FONT_OPTIONS } from "../hooks/useEditorSettings";
+import type { Theme } from "../types";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -10,6 +11,9 @@ interface SettingsPanelProps {
   fontSize: number;
   onFontFamilyChange: (v: string) => void;
   onFontSizeChange: (v: number) => void;
+  themes: Theme[];
+  themeId: string;
+  onThemeChange: (id: string) => void;
 }
 
 export default function SettingsPanel({
@@ -19,6 +23,9 @@ export default function SettingsPanel({
   fontSize,
   onFontFamilyChange,
   onFontSizeChange,
+  themes,
+  themeId,
+  onThemeChange,
 }: SettingsPanelProps) {
   useEffect(() => {
     if (!open) return;
@@ -82,6 +89,23 @@ export default function SettingsPanel({
                   onChange={(e) => onFontSizeChange(Number(e.target.value))}
                 />
               </label>
+              <div className="modal-field-block">
+                <span>Theme</span>
+                <div className="settings-theme-swatches">
+                  {themes.map((t) => (
+                    <button
+                      key={t.id}
+                      title={t.name}
+                      className={`theme-swatch settings-swatch${themeId === t.id ? " active" : ""}`}
+                      style={{ background: t.vars["--accent"] }}
+                      onClick={() => onThemeChange(t.id)}
+                    />
+                  ))}
+                </div>
+                <span className="settings-theme-name">
+                  {themes.find((t) => t.id === themeId)?.name ?? ""}
+                </span>
+              </div>
             </div>
 
             <div className="modal-footer">

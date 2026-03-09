@@ -1,5 +1,6 @@
 import { Command } from "cmdk";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect } from "react";
 import type { CommandItem } from "../types";
 
 interface CommandPaletteProps {
@@ -14,6 +15,19 @@ export default function CommandPalette({
   items,
 }: CommandPaletteProps) {
   const groups = ["Document", "Format", "Theme", "Export", "View"] as const;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handler, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", handler, { capture: true });
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>
@@ -68,6 +82,16 @@ export default function CommandPalette({
                 })}
               </Command.List>
             </Command>
+            <div className="palette-footer">
+              <a
+                href="https://gulbahar.tech/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="palette-footer-ad"
+              >
+                visit gulbahar.tech
+              </a>
+            </div>
           </motion.div>
         </motion.div>
       )}

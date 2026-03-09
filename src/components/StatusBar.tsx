@@ -3,7 +3,6 @@ interface StatusBarProps {
   col: number;
   wordCount: number;
   charCount: number;
-  themeName: string;
 }
 
 export default function StatusBar({
@@ -11,7 +10,6 @@ export default function StatusBar({
   col,
   wordCount,
   charCount,
-  themeName,
 }: StatusBarProps) {
   return (
     <div className="status-bar">
@@ -20,16 +18,15 @@ export default function StatusBar({
       <span className="status-sep" />
       <span className="status-item">{wordCount} words</span>
       <span className="status-item">{charCount} chars</span>
+      <span className="status-spacer" />
       <a
         href="https://gulbahar.tech/"
         target="_blank"
         rel="noopener noreferrer"
         className="status-item status-ad"
       >
-        visit gulbahar.tech
+        gulbahar.tech
       </a>
-      <span className="status-spacer" />
-      <span className="status-item status-theme">{themeName}</span>
     </div>
   );
 }
