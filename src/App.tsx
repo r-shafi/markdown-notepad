@@ -460,6 +460,9 @@ export default function App() {
         fontSize={settings.fontSize}
         onFontFamilyChange={updateFontFamily}
         onFontSizeChange={updateFontSize}
+        themes={themes}
+        themeId={themeId}
+        onThemeChange={setTheme}
       />
 
       {isMobile ? (
@@ -599,7 +602,6 @@ export default function App() {
             col={cursor.col}
             wordCount={countWords(content)}
             charCount={content.length}
-            themeName={theme.name}
           />
           <nav className="mobile-tabs">
             <button
@@ -657,7 +659,6 @@ export default function App() {
           col={cursor.col}
           wordCount={countWords(content)}
           charCount={content.length}
-          themeName={theme.name}
         />
       )}
 

@@ -461,6 +461,27 @@ body {
   font-family: var(--font-code);
 }
 
+.palette-footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+.palette-footer-ad {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  opacity: 0.6;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+  letter-spacing: 0.02em;
+}
+.palette-footer-ad:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
 /* ─── Export / Generic modal ─────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -633,9 +654,6 @@ body {
 }
 
 .status-ad {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 11px;
@@ -645,7 +663,6 @@ body {
     color 0.15s;
   letter-spacing: 0.01em;
   white-space: nowrap;
-  pointer-events: auto;
 }
 
 .status-ad:hover {
@@ -817,9 +834,28 @@ body {
   border-top-color: var(--accent);
 }
 
-/* Hide centred ad on narrow screens */
+/* Hide status ad on narrow screens */
 @media (max-width: 767px) {
   .status-ad {
     display: none;
   }
+}
+
+/* Settings modal — theme swatches */
+.settings-theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.settings-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+}
+.settings-theme-name {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
 }
