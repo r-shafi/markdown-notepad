@@ -30,18 +30,22 @@ export default function Toolbar({
     <header className="toolbar">
       <span className="toolbar-brand">MarkPad</span>
 
-      {/* Theme swatches */}
-      <div className="theme-swatches">
-        {themes.map((t) => (
-          <button
-            key={t.id}
-            title={t.name}
-            className={`theme-swatch${themeId === t.id ? " active" : ""}`}
-            style={{ background: t.vars["--accent"] }}
-            onClick={() => onThemeChange(t.id)}
-          />
-        ))}
-      </div>
+      {/* Theme swatches — hidden on mobile to save space */}
+      {isMobile ? (
+        <span className="toolbar-spacer" />
+      ) : (
+        <div className="theme-swatches">
+          {themes.map((t) => (
+            <button
+              key={t.id}
+              title={t.name}
+              className={`theme-swatch${themeId === t.id ? " active" : ""}`}
+              style={{ background: t.vars["--accent"] }}
+              onClick={() => onThemeChange(t.id)}
+            />
+          ))}
+        </div>
+      )}
 
       <div className="toolbar-actions">
         <button

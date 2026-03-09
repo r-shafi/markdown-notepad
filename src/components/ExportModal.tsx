@@ -142,6 +142,13 @@ export default function ExportModal({
         const pageImgData = pageCanvas.toDataURL("image/png");
         const sliceH = (srcH * pageW) / canvas.width;
         pdf.addImage(pageImgData, "PNG", 0, 0, imgW, sliceH);
+
+        // Watermark — bottom-right corner of every page
+        pdf.setFontSize(7);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text("github.com/r-shafi", pageW - 6, pageH - 4, {
+          align: "right",
+        });
       }
 
       const filename = (documentTitle || "document").replace(
