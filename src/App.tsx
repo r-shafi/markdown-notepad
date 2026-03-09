@@ -8,6 +8,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import StatusBar from "./components/StatusBar";
 import Toast from "./components/Toast";
 import Toolbar from "./components/Toolbar";
+import { Eye, PenLine } from "lucide-react";
 import { DEFAULT_DOCUMENT } from "./defaultDocument";
 import { useCommandPalette } from "./hooks/useCommandPalette";
 import { useEditorSettings } from "./hooks/useEditorSettings";
@@ -55,6 +56,7 @@ export default function App() {
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const dragging = useRef(false);
+  const touchStartX = useRef<number>(0);
   const { theme, themeId, setTheme } = useTheme();
   const palette = useCommandPalette();
   const { settings, updateFontFamily, updateFontSize } = useEditorSettings();
@@ -407,6 +409,36 @@ export default function App() {
     setCursor(pos);
   }, []);
 
+  const insertHeading = useCallback((level: number) => {
+    const view = editorRef.current?.view;
+    if (!view) return;
+    const { from } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+    const prefix = "#".repeat(level) + " ";
+    const text = line.text.replace(/^#{1,6}\s/, "");
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert: prefix + text },
+      selection: { anchor: line.from + prefix.length },
+    });
+  }, []);
+
+  const insertPrefix = useCallback((prefix: string) => {
+    const view = editorRef.current?.view;
+    if (!view) return;
+    const { from } = view.state.selection.main;
+    const line = view.state.doc.lineAt(from);
+    if (line.text.startsWith(prefix)) {
+      view.dispatch({
+        changes: { from: line.from, to: line.from + prefix.length, insert: "" },
+      });
+    } else {
+      view.dispatch({
+        changes: { from: line.from, insert: prefix },
+        selection: { anchor: from + prefix.length },
+      });
+    }
+  }, []);
+
   return (
     <div className={`app-root ${isDark ? "dark" : "light"}`}>
       <Toolbar
@@ -432,7 +464,16 @@ export default function App() {
 
       {isMobile ? (
         <div className="mobile-layout">
-          <div className="mobile-content">
+          <div
+            className="mobile-content"
+            onTouchStart={(e) => {
+              touchStartX.current = e.touches[0].clientX;
+            }}
+            onTouchEnd={(e) => {
+              const dx = e.changedTouches[0].clientX - touchStartX.current;
+              if (Math.abs(dx) > 60) setMobileTab(dx < 0 ? "preview" : "edit");
+            }}
+          >
             <AnimatedPane active={mobileTab === "edit"}>
               <Editor
                 ref={editorRef}
@@ -455,6 +496,104 @@ export default function App() {
               />
             </AnimatedPane>
           </div>
+          {mobileTab === "edit" && (
+            <div className="mobile-format-bar">
+              <button
+                className="mobile-format-btn"
+                style={{ fontWeight: 700 }}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  wrapSelection("**");
+                }}
+              >
+                B
+              </button>
+              <button
+                className="mobile-format-btn"
+                style={{ fontStyle: "italic" }}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  wrapSelection("_");
+                }}
+              >
+                I
+              </button>
+              <button
+                className="mobile-format-btn mobile-format-mono"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  wrapSelection("`");
+                }}
+              >
+                `
+              </button>
+              <button
+                className="mobile-format-btn"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertLink();
+                }}
+              >
+                Link
+              </button>
+              <span className="mobile-format-sep" />
+              <button
+                className="mobile-format-btn"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertHeading(1);
+                }}
+              >
+                H1
+              </button>
+              <button
+                className="mobile-format-btn"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertHeading(2);
+                }}
+              >
+                H2
+              </button>
+              <button
+                className="mobile-format-btn"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertHeading(3);
+                }}
+              >
+                H3
+              </button>
+              <span className="mobile-format-sep" />
+              <button
+                className="mobile-format-btn"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertPrefix("> ");
+                }}
+              >
+                ❝
+              </button>
+              <button
+                className="mobile-format-btn"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertPrefix("- ");
+                }}
+              >
+                •—
+              </button>
+              <button
+                className="mobile-format-btn mobile-format-mono"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  insertCodeBlock();
+                }}
+              >
+                {"{}"}
+              </button>
+            </div>
+          )}
           <StatusBar
             line={cursor.line}
             col={cursor.col}
@@ -467,12 +606,14 @@ export default function App() {
               className={`tab-btn${mobileTab === "edit" ? " active" : ""}`}
               onClick={() => setMobileTab("edit")}
             >
+              <PenLine size={15} />
               Edit
             </button>
             <button
               className={`tab-btn${mobileTab === "preview" ? " active" : ""}`}
               onClick={() => setMobileTab("preview")}
             >
+              <Eye size={15} />
               Preview
             </button>
           </nav>
