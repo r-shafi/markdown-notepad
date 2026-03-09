@@ -10,9 +10,11 @@ export interface ShortcutMap {
   formatDoc: Handler;
   openPalette: Handler;
   exportPDF: Handler;
+  saveDoc: Handler;
   toggleComment: Handler;
   duplicateLine: Handler;
   togglePreview: Handler;
+  pasteAsPlainText: Handler;
   switchTheme: (index: number) => void;
 }
 
@@ -34,14 +36,14 @@ export function useKeyboardShortcuts(handlers: ShortcutMap) {
         handlers.italic();
         return;
       }
-      if (key === "k" && !e.shiftKey) {
-        e.preventDefault();
-        handlers.insertLink();
-        return;
-      }
       if (key === "k" && e.shiftKey) {
         e.preventDefault();
         handlers.insertCodeBlock();
+        return;
+      }
+      if (key === "k" && !e.shiftKey) {
+        e.preventDefault();
+        handlers.insertLink();
         return;
       }
       if (key === "f" && e.shiftKey) {
@@ -54,9 +56,24 @@ export function useKeyboardShortcuts(handlers: ShortcutMap) {
         handlers.openPalette();
         return;
       }
+      if (key === "p" && e.shiftKey) {
+        e.preventDefault();
+        handlers.togglePreview();
+        return;
+      }
       if (key === "e" && !e.shiftKey) {
         e.preventDefault();
         handlers.exportPDF();
+        return;
+      }
+      if (key === "s" && !e.shiftKey) {
+        e.preventDefault();
+        handlers.saveDoc();
+        return;
+      }
+      if (key === "v" && e.shiftKey) {
+        e.preventDefault();
+        handlers.pasteAsPlainText();
         return;
       }
       if (key === "/" && !e.shiftKey) {
@@ -69,15 +86,10 @@ export function useKeyboardShortcuts(handlers: ShortcutMap) {
         handlers.duplicateLine();
         return;
       }
-      if (key === "p" && e.shiftKey) {
-        e.preventDefault();
-        handlers.togglePreview();
-        return;
-      }
 
       // Ctrl+1..0 → switch theme 0–9
-      const num = parseInt(e.key, 10);
-      if (!isNaN(num)) {
+      const num = Number.parseInt(e.key, 10);
+      if (!Number.isNaN(num)) {
         e.preventDefault();
         handlers.switchTheme(num === 0 ? 9 : num - 1);
       }

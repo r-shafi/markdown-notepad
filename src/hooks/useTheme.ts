@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_THEME_ID, themes } from "../themes";
 import type { Theme } from "../types";
+import atomOneDarkCss from "highlight.js/styles/atom-one-dark.css?raw";
+import githubCss from "highlight.js/styles/github.css?raw";
+import solarizedDarkCss from "highlight.js/styles/base16/solarized-dark.css?raw";
 
-const STORAGE_KEY = "markpad-theme";
+const STORAGE_KEY = "markpad_theme";
+
+const hljsCssMap: Record<string, string> = {
+  "atom-one-dark": atomOneDarkCss,
+  github: githubCss,
+  "solarized-dark": solarizedDarkCss,
+};
 
 export function useTheme() {
   const [themeId, setThemeId] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY) ?? DEFAULT_THEME_ID;
+    return (
+      localStorage.getItem(STORAGE_KEY) ??
+      localStorage.getItem("markpad-theme") ??
+      DEFAULT_THEME_ID
+    );
   });
 
   const theme: Theme = themes.find((t) => t.id === themeId) ?? themes[1];
@@ -17,6 +30,15 @@ export function useTheme() {
       root.style.setProperty(key, value);
     }
     localStorage.setItem(STORAGE_KEY, themeId);
+
+    // Inject hljs theme CSS
+    let styleEl = document.getElementById("hljs-theme-style");
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "hljs-theme-style";
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = hljsCssMap[theme.hljsTheme] ?? "";
   }, [theme, themeId]);
 
   const setTheme = useCallback((id: string) => setThemeId(id), []);
