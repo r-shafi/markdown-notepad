@@ -13,10 +13,12 @@ export interface ExportOptions {
   fontSize: number;
 }
 
+import type { ReactNode } from "react";
+
 export interface CommandItem {
   id: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   shortcut?: string;
   group: "Document" | "Format" | "Theme" | "Export" | "View";
   action: () => void;

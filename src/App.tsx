@@ -8,14 +8,16 @@ import SettingsPanel from "./components/SettingsPanel";
 import StatusBar from "./components/StatusBar";
 import Toast from "./components/Toast";
 import Toolbar from "./components/Toolbar";
-import { Eye, PenLine } from "lucide-react";
+import { Eye, List, PenLine, Quote } from "lucide-react";
+import { createCommands } from "./commands";
 import { DEFAULT_DOCUMENT } from "./defaultDocument";
 import { useCommandPalette } from "./hooks/useCommandPalette";
+import { useEditorActions } from "./hooks/useEditorActions";
 import { useEditorSettings } from "./hooks/useEditorSettings";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useTheme } from "./hooks/useTheme";
 import { themes } from "./themes";
-import type { CommandItem, CursorPosition } from "./types";
+import type { CursorPosition } from "./types";
 import prettier from "prettier/standalone";
 import parserMarkdown from "prettier/plugins/markdown";
 
@@ -53,6 +55,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [cursor, setCursor] = useState<CursorPosition>({ line: 1, col: 1 });
+  const [syncScroll, setSyncScroll] = useState(() => {
+    const stored = localStorage.getItem("gulbahar-notes-sync-scroll");
+    return stored === null ? true : stored === "true";
+  });
 
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const dragging = useRef(false);
@@ -60,6 +66,16 @@ export default function App() {
   const { theme, themeId, setTheme } = useTheme();
   const palette = useCommandPalette();
   const { settings, updateFontFamily, updateFontSize } = useEditorSettings();
+  const {
+    wrapSelection,
+    insertLink,
+    insertImage,
+    insertCodeBlock,
+    duplicateLine,
+    toggleComment,
+    insertHeading,
+    insertPrefix,
+  } = useEditorActions(editorRef);
 
   useEffect(() => {
     localStorage.setItem(CONTENT_KEY, content);
@@ -78,111 +94,6 @@ export default function App() {
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
-  }, []);
-
-  const wrapSelection = useCallback((before: string, after = before) => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from, to } = view.state.selection.main;
-    const selected = view.state.doc.sliceString(from, to);
-    view.dispatch({
-      changes: { from, to, insert: `${before}${selected}${after}` },
-      selection: { anchor: from + before.length, head: to + before.length },
-    });
-  }, []);
-
-  const insertLink = useCallback(() => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from, to } = view.state.selection.main;
-    const selected = view.state.doc.sliceString(from, to);
-    if (selected) {
-      const replacement = `[${selected}](url)`;
-      view.dispatch({
-        changes: { from, to, insert: replacement },
-        selection: {
-          anchor: from + selected.length + 3,
-          head: from + selected.length + 6,
-        },
-      });
-    } else {
-      view.dispatch({
-        changes: { from, insert: "[](url)" },
-        selection: { anchor: from + 1 },
-      });
-    }
-  }, []);
-
-  const insertCodeBlock = useCallback(() => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from, to } = view.state.selection.main;
-    const selected = view.state.doc.sliceString(from, to);
-    if (selected) {
-      const replacement = `\n\`\`\`\n${selected}\n\`\`\`\n`;
-      view.dispatch({
-        changes: { from, to, insert: replacement },
-        selection: { anchor: from + 4 },
-      });
-    } else {
-      view.dispatch({
-        changes: { from, insert: "\n```\n\n```\n" },
-        selection: { anchor: from + 5 },
-      });
-    }
-  }, []);
-
-  const duplicateLine = useCallback(() => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from } = view.state.selection.main;
-    const line = view.state.doc.lineAt(from);
-    view.dispatch({
-      changes: { from: line.to, insert: `\n${line.text}` },
-    });
-  }, []);
-
-  const toggleComment = useCallback(() => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from, to } = view.state.selection.main;
-
-    if (from === to) {
-      const line = view.state.doc.lineAt(from);
-      const text = line.text;
-      if (
-        text.trimStart().startsWith("<!--") &&
-        text.trimEnd().endsWith("-->")
-      ) {
-        const newText = text
-          .replace(/^\s*<!--\s?/, "")
-          .replace(/\s?-->\s*$/, "");
-        view.dispatch({
-          changes: { from: line.from, to: line.to, insert: newText },
-        });
-      } else {
-        view.dispatch({
-          changes: {
-            from: line.from,
-            to: line.to,
-            insert: `<!-- ${text} -->`,
-          },
-        });
-      }
-    } else {
-      const selected = view.state.doc.sliceString(from, to);
-      if (selected.startsWith("<!--") && selected.endsWith("-->")) {
-        const unwrapped = selected.slice(4, -3).trim();
-        view.dispatch({
-          changes: { from, to, insert: unwrapped },
-        });
-      } else {
-        view.dispatch({
-          changes: { from, to, insert: `<!-- ${selected} -->` },
-          selection: { anchor: from + 5, head: to + 5 },
-        });
-      }
-    }
   }, []);
 
   const formatDoc = useCallback(async () => {
@@ -209,7 +120,7 @@ export default function App() {
       } else {
         setContent(formatted);
       }
-      showToast("Document formatted ✓");
+      showToast("Document formatted");
     } catch {
       showToast("Format failed");
     }
@@ -226,7 +137,7 @@ export default function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast("Document saved ✓");
+    showToast("Document saved");
   }, [content, showToast]);
 
   const pasteAsPlainText = useCallback(async () => {
@@ -264,108 +175,27 @@ export default function App() {
 
   const isDark = !["minimal", "things"].includes(themeId);
 
-  const commands: CommandItem[] = useMemo(
-    () => [
-      {
-        id: "bold",
-        label: "Bold",
-        icon: "B",
-        shortcut: "Ctrl+B",
-        group: "Format",
-        action: () => wrapSelection("**"),
-      },
-      {
-        id: "italic",
-        label: "Italic",
-        icon: "I",
-        shortcut: "Ctrl+I",
-        group: "Format",
-        action: () => wrapSelection("_"),
-      },
-      {
-        id: "link",
-        label: "Insert Link",
-        icon: "🔗",
-        shortcut: "Ctrl+K",
-        group: "Format",
-        action: insertLink,
-      },
-      {
-        id: "code-block",
-        label: "Insert Code Block",
-        icon: "<>",
-        shortcut: "Ctrl+Shift+K",
-        group: "Format",
-        action: insertCodeBlock,
-      },
-      {
-        id: "format",
-        label: "Format Document",
-        icon: "✨",
-        shortcut: "Ctrl+Shift+F",
-        group: "Format",
-        action: formatDoc,
-      },
-      {
-        id: "comment",
-        label: "Toggle Comment",
-        icon: "//",
-        shortcut: "Ctrl+/",
-        group: "Format",
-        action: toggleComment,
-      },
-      {
-        id: "duplicate",
-        label: "Duplicate Line",
-        icon: "⊕",
-        shortcut: "Ctrl+D",
-        group: "Document",
-        action: duplicateLine,
-      },
-      {
-        id: "save",
-        label: "Save as Markdown",
-        icon: "💾",
-        shortcut: "Ctrl+S",
-        group: "Document",
-        action: saveAsMarkdown,
-      },
-      {
-        id: "paste-plain",
-        label: "Paste as Plain Text",
-        icon: "📋",
-        shortcut: "Ctrl+Shift+V",
-        group: "Document",
-        action: pasteAsPlainText,
-      },
-      {
-        id: "export",
-        label: "Export PDF",
-        icon: "⬇",
-        shortcut: "Ctrl+E",
-        group: "Export",
-        action: () => setExportOpen(true),
-      },
-      {
-        id: "toggle-preview",
-        label: "Toggle Preview",
-        icon: "👁",
-        shortcut: "Ctrl+Shift+P",
-        group: "View",
-        action: () => setShowPreview((v) => !v),
-      },
-      ...themes.map((t, i) => ({
-        id: `theme-${t.id}`,
-        label: `Theme: ${t.name}`,
-        icon: "🎨",
-        shortcut: `Ctrl+${(i + 1) % 10}`,
-        group: "Theme" as const,
-        action: () => setTheme(t.id),
-      })),
-    ],
+  const commands = useMemo(
+    () =>
+      createCommands({
+        wrapSelection,
+        insertLink,
+        insertImage,
+        insertCodeBlock,
+        formatDoc,
+        toggleComment,
+        duplicateLine,
+        saveAsMarkdown,
+        pasteAsPlainText,
+        openExport: () => setExportOpen(true),
+        togglePreview: () => setShowPreview((v) => !v),
+        setTheme,
+        themes,
+      }),
     [
       wrapSelection,
       insertLink,
+      insertImage,
       insertCodeBlock,
       formatDoc,
       toggleComment,
@@ -380,6 +210,7 @@ export default function App() {
     bold: () => wrapSelection("**"),
     italic: () => wrapSelection("_"),
     insertLink,
+    insertImage,
     insertCodeBlock,
     formatDoc,
     openPalette: palette.toggle,
@@ -389,6 +220,7 @@ export default function App() {
     duplicateLine,
     togglePreview: () => setShowPreview((v) => !v),
     pasteAsPlainText,
+    openSettings: () => setSettingsOpen((v) => !v),
     switchTheme: (i) => {
       if (themes[i]) setTheme(themes[i].id);
     },
@@ -398,35 +230,14 @@ export default function App() {
     setCursor(pos);
   }, []);
 
-  const insertHeading = useCallback((level: number) => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from } = view.state.selection.main;
-    const line = view.state.doc.lineAt(from);
-    const prefix = "#".repeat(level) + " ";
-    const text = line.text.replace(/^#{1,6}\s/, "");
-    view.dispatch({
-      changes: { from: line.from, to: line.to, insert: prefix + text },
-      selection: { anchor: line.from + prefix.length },
-    });
-  }, []);
+  const handleEditorScroll = useCallback(
+    (top: number, h: number, ch: number) => {
+      setScrollRatio(h > ch ? top / (h - ch) : 0);
+    },
+    [],
+  );
 
-  const insertPrefix = useCallback((prefix: string) => {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const { from } = view.state.selection.main;
-    const line = view.state.doc.lineAt(from);
-    if (line.text.startsWith(prefix)) {
-      view.dispatch({
-        changes: { from: line.from, to: line.from + prefix.length, insert: "" },
-      });
-    } else {
-      view.dispatch({
-        changes: { from: line.from, insert: prefix },
-        selection: { anchor: from + prefix.length },
-      });
-    }
-  }, []);
+  const wordCount = useMemo(() => countWords(content), [content]);
 
   return (
     <div className={`app-root ${isDark ? "dark" : "light"}`}>
@@ -440,6 +251,13 @@ export default function App() {
         onToggleSettings={() => setSettingsOpen((v) => !v)}
         showPreview={showPreview}
         onTogglePreview={() => setShowPreview((v) => !v)}
+        syncScroll={syncScroll}
+        onToggleSyncScroll={() => {
+          setSyncScroll((v) => {
+            localStorage.setItem("gulbahar-notes-sync-scroll", String(!v));
+            return !v;
+          });
+        }}
         isMobile={isMobile}
       />
       <SettingsPanel
@@ -471,9 +289,7 @@ export default function App() {
                 ref={editorRef}
                 value={content}
                 onChange={setContent}
-                onScroll={(top, h, ch) =>
-                  setScrollRatio(h > ch ? top / (h - ch) : 0)
-                }
+                onScroll={handleEditorScroll}
                 onCursorChange={onCursorChange}
                 darkMode={isDark}
                 fontFamily={settings.fontFamily}
@@ -485,6 +301,9 @@ export default function App() {
                 content={content}
                 scrollRatio={scrollRatio}
                 id="preview-pane"
+                fontFamily={settings.fontFamily}
+                fontSize={settings.fontSize}
+                syncScroll={syncScroll}
               />
             </AnimatedPane>
           </div>
@@ -564,7 +383,7 @@ export default function App() {
                   insertPrefix("> ");
                 }}
               >
-                ❝
+                <Quote size={13} />
               </button>
               <button
                 className="mobile-format-btn"
@@ -573,7 +392,7 @@ export default function App() {
                   insertPrefix("- ");
                 }}
               >
-                •—
+                <List size={13} />
               </button>
               <button
                 className="mobile-format-btn mobile-format-mono"
@@ -589,7 +408,7 @@ export default function App() {
           <StatusBar
             line={cursor.line}
             col={cursor.col}
-            wordCount={countWords(content)}
+            wordCount={wordCount}
             charCount={content.length}
           />
           <nav className="mobile-tabs">
@@ -616,9 +435,7 @@ export default function App() {
               ref={editorRef}
               value={content}
               onChange={setContent}
-              onScroll={(top, h, ch) =>
-                setScrollRatio(h > ch ? top / (h - ch) : 0)
-              }
+              onScroll={handleEditorScroll}
               onCursorChange={onCursorChange}
               darkMode={isDark}
               fontFamily={settings.fontFamily}
@@ -636,6 +453,9 @@ export default function App() {
                 content={content}
                 scrollRatio={scrollRatio}
                 id="preview-pane"
+                fontFamily={settings.fontFamily}
+                fontSize={settings.fontSize}
+                syncScroll={syncScroll}
               />
             </div>
           )}
@@ -646,7 +466,7 @@ export default function App() {
         <StatusBar
           line={cursor.line}
           col={cursor.col}
-          wordCount={countWords(content)}
+          wordCount={wordCount}
           charCount={content.length}
         />
       )}
@@ -661,7 +481,7 @@ export default function App() {
         onClose={() => setExportOpen(false)}
         previewElId="preview-pane"
         documentTitle={getDocTitle(content)}
-        onExportComplete={() => showToast("PDF exported ✓")}
+        onExportComplete={() => showToast("PDF exported")}
       />
       <Toast message={toast} />
     </div>
