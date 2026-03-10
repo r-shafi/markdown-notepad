@@ -1,4 +1,4 @@
-export const DEFAULT_DOCUMENT = `# Welcome to MarkPad
+export const DEFAULT_DOCUMENT = `# Welcome to Gulbahar Notes
 
 A fast, beautiful Markdown editor for writing ideas, notes, and stories.  
 Start typing — your work is saved automatically.
@@ -40,7 +40,7 @@ Start typing — your work is saved automatically.
 
 ### Task List
 
-- [x] Open MarkPad
+- [x] Open Gulbahar Notes
 - [x] Pick a theme
 - [ ] Write something interesting
 - [ ] Share your writing
@@ -82,7 +82,7 @@ greet('Writer');
 
 ## Image
 
-![Sample Image](https://picsum.photos/seed/markpad/800/400)
+![Gulbahar Logo](https://gulbahar.tech/icons/apple-touch-icon.png)
 
 ---
 

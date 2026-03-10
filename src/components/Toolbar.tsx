@@ -28,9 +28,8 @@ export default function Toolbar({
 }: ToolbarProps) {
   return (
     <header className="toolbar">
-      <span className="toolbar-brand">MarkPad</span>
+      <span className="toolbar-brand">Gulbahar Notes</span>
 
-      {/* Theme swatches — hidden on mobile to save space */}
       {isMobile ? (
         <span className="toolbar-spacer" />
       ) : (

@@ -19,8 +19,8 @@ import type { CommandItem, CursorPosition } from "./types";
 import prettier from "prettier/standalone";
 import parserMarkdown from "prettier/plugins/markdown";
 
-const CONTENT_KEY = "markpad_content";
-const SPLIT_KEY = "markpad_split_ratio";
+const CONTENT_KEY = "gulbahar-notes-content";
+const SPLIT_KEY = "gulbahar-notes-split-ratio";
 
 function getDocTitle(content: string) {
   const match = content.match(/^#\s+(.+)/m);
@@ -35,13 +35,13 @@ export default function App() {
   const [content, setContent] = useState<string>(
     () =>
       localStorage.getItem(CONTENT_KEY) ??
-      localStorage.getItem("markpad-content") ??
+      localStorage.getItem("gulbahar-notes-content") ??
       DEFAULT_DOCUMENT,
   );
   const [splitRatio, setSplitRatio] = useState<number>(() =>
     Number(
       localStorage.getItem(SPLIT_KEY) ??
-        localStorage.getItem("markpad-split") ??
+        localStorage.getItem("gulbahar-notes-split") ??
         50,
     ),
   );
@@ -61,17 +61,14 @@ export default function App() {
   const palette = useCommandPalette();
   const { settings, updateFontFamily, updateFontSize } = useEditorSettings();
 
-  // Persist content
   useEffect(() => {
     localStorage.setItem(CONTENT_KEY, content);
   }, [content]);
 
-  // Persist split ratio
   useEffect(() => {
     localStorage.setItem(SPLIT_KEY, String(splitRatio));
   }, [splitRatio]);
 
-  // Resize observer
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handler);
@@ -83,7 +80,6 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   }, []);
 
-  // Editor manipulation helpers
   const wrapSelection = useCallback((before: string, after = before) => {
     const view = editorRef.current?.view;
     if (!view) return;
@@ -101,7 +97,6 @@ export default function App() {
     const { from, to } = view.state.selection.main;
     const selected = view.state.doc.sliceString(from, to);
     if (selected) {
-      // Wrap selection: [selected](url)
       const replacement = `[${selected}](url)`;
       view.dispatch({
         changes: { from, to, insert: replacement },
@@ -111,7 +106,6 @@ export default function App() {
         },
       });
     } else {
-      // Insert [](url) with cursor between brackets
       view.dispatch({
         changes: { from, insert: "[](url)" },
         selection: { anchor: from + 1 },
@@ -154,7 +148,6 @@ export default function App() {
     const { from, to } = view.state.selection.main;
 
     if (from === to) {
-      // No selection: toggle comment on current line
       const line = view.state.doc.lineAt(from);
       const text = line.text;
       if (
@@ -207,7 +200,7 @@ export default function App() {
         view.dispatch({
           changes: { from: 0, to: view.state.doc.length, insert: formatted },
         });
-        // Restore cursor to same line (clamped)
+
         const targetLine = Math.min(cursorLine, view.state.doc.lines);
         const lineInfo = view.state.doc.line(targetLine);
         view.dispatch({
@@ -247,12 +240,9 @@ export default function App() {
         changes: { from, to, insert: text },
         selection: { anchor: from + text.length },
       });
-    } catch {
-      // clipboard access denied
-    }
+    } catch {}
   }, []);
 
-  // Resizable split pane
   const onDividerMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     dragging.current = true;
@@ -274,7 +264,6 @@ export default function App() {
 
   const isDark = !["minimal", "things"].includes(themeId);
 
-  // Build command palette items
   const commands: CommandItem[] = useMemo(
     () => [
       {

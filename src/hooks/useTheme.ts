@@ -5,7 +5,7 @@ import atomOneDarkCss from "highlight.js/styles/atom-one-dark.css?raw";
 import githubCss from "highlight.js/styles/github.css?raw";
 import solarizedDarkCss from "highlight.js/styles/base16/solarized-dark.css?raw";
 
-const STORAGE_KEY = "markpad_theme";
+const STORAGE_KEY = "gulbahar-notes-theme";
 
 const hljsCssMap: Record<string, string> = {
   "atom-one-dark": atomOneDarkCss,
@@ -17,7 +17,7 @@ export function useTheme() {
   const [themeId, setThemeId] = useState<string>(() => {
     return (
       localStorage.getItem(STORAGE_KEY) ??
-      localStorage.getItem("markpad-theme") ??
+      localStorage.getItem("gulbahar-notes-theme") ??
       DEFAULT_THEME_ID
     );
   });

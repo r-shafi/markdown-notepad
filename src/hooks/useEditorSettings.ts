@@ -5,8 +5,8 @@ export interface EditorSettings {
   fontSize: number;
 }
 
-const FONT_FAMILY_KEY = "markpad_editor_font_family";
-const FONT_SIZE_KEY = "markpad_editor_font_size";
+const FONT_FAMILY_KEY = "gulbahar-notes-editor-font-family";
+const FONT_SIZE_KEY = "gulbahar-notes-editor-font-size";
 
 export const FONT_OPTIONS = [
   { label: "JetBrains Mono", value: "'JetBrains Mono', monospace" },
