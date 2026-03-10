@@ -143,10 +143,9 @@ export default function ExportModal({
         const sliceH = (srcH * pageW) / canvas.width;
         pdf.addImage(pageImgData, "PNG", 0, 0, imgW, sliceH);
 
-        // Watermark — bottom-right corner of every page
         pdf.setFontSize(7);
         pdf.setTextColor(150, 150, 150);
-        pdf.text("github.com/r-shafi", pageW - 6, pageH - 4, {
+        pdf.text("https://gulbahar.tech", pageW - 6, pageH - 4, {
           align: "right",
         });
       }
