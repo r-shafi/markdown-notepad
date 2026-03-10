@@ -70,7 +70,7 @@ export default function ExportModal({
 
     try {
       const canvas = await html2canvas(el, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         scrollY: 0,
         windowHeight: el.scrollHeight,
@@ -91,9 +91,11 @@ export default function ExportModal({
 
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const contentW = pageW - margin * 2;
-      const contentH = pageH - margin * 2;
+      const marginX = 8;
+      const marginTop = 10;
+      const marginBottom = 12;
+      const contentW = pageW - marginX * 2;
+      const contentH = pageH - marginTop - marginBottom;
       const bgColor = opts.withTheme
         ? getComputedStyle(document.documentElement)
             .getPropertyValue("--bg-primary")
@@ -108,24 +110,33 @@ export default function ExportModal({
 
       function isBlankRow(y: number): boolean {
         if (!fullCtx || y < 0 || y >= canvas.height) return false;
-        const row = fullCtx.getImageData(0, y, canvas.width, 1).data;
-        const r0 = row[0],
-          g0 = row[1],
-          b0 = row[2];
-        for (let i = 4; i < row.length; i += 4) {
-          if (row[i] !== r0 || row[i + 1] !== g0 || row[i + 2] !== b0)
+        const step = Math.max(1, Math.floor(canvas.width / 80));
+        const first = fullCtx.getImageData(0, y, 1, 1).data;
+        const r0 = first[0],
+          g0 = first[1],
+          b0 = first[2];
+        for (let x = step; x < canvas.width; x += step) {
+          const px = fullCtx.getImageData(x, y, 1, 1).data;
+          if (
+            Math.abs(px[0] - r0) > 2 ||
+            Math.abs(px[1] - g0) > 2 ||
+            Math.abs(px[2] - b0) > 2
+          )
             return false;
         }
         return true;
       }
 
       function findBreakPoint(idealY: number): number {
-        const searchRange = Math.round(pageCanvasH * 0.15);
+        const searchRange = Math.round(pageCanvasH * 0.2);
+        for (let offset = 0; offset < searchRange; offset++) {
+          const above = idealY - offset;
+          if (above > 0 && isBlankRow(above) && isBlankRow(above - 1))
+            return above;
+        }
         for (let offset = 0; offset < searchRange; offset++) {
           const above = idealY - offset;
           if (above > 0 && isBlankRow(above)) return above;
-          const below = idealY + offset;
-          if (below < canvas.height && isBlankRow(below)) return below;
         }
         return idealY;
       }
@@ -171,14 +182,14 @@ export default function ExportModal({
           Math.round(srcH),
         );
 
-        const pageImgData = pageCanvas.toDataURL("image/png");
+        const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.85);
         const sliceH = (srcH * contentW) / canvas.width;
-        pdf.addImage(pageImgData, "PNG", margin, margin, imgW, sliceH);
+        pdf.addImage(pageImgData, "JPEG", marginX, marginTop, imgW, sliceH);
 
         if (opts.showWatermark) {
           pdf.setFontSize(7);
           pdf.setTextColor(150, 150, 150);
-          pdf.text("https://gulbahar.tech", pageW - 6, pageH - 4, {
+          pdf.text("https://gulbahar.tech", pageW - marginX, pageH - 4, {
             align: "right",
           });
         }
