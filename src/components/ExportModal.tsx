@@ -24,6 +24,7 @@ export default function ExportModal({
     withTheme: true,
     pageSize: "a4",
     fontSize: 14,
+    showWatermark: true,
   });
   const [loading, setLoading] = useState(false);
   const [thumbnail, setThumbnail] = useState<string | null>(null);
@@ -174,11 +175,13 @@ export default function ExportModal({
         const sliceH = (srcH * contentW) / canvas.width;
         pdf.addImage(pageImgData, "PNG", margin, margin, imgW, sliceH);
 
-        pdf.setFontSize(7);
-        pdf.setTextColor(150, 150, 150);
-        pdf.text("https://gulbahar.tech", pageW - 6, pageH - 4, {
-          align: "right",
-        });
+        if (opts.showWatermark) {
+          pdf.setFontSize(7);
+          pdf.setTextColor(150, 150, 150);
+          pdf.text("https://gulbahar.tech", pageW - 6, pageH - 4, {
+            align: "right",
+          });
+        }
       }
 
       const filename = (documentTitle || "document").replace(
@@ -238,6 +241,17 @@ export default function ExportModal({
                   }
                 />
                 Export with current theme
+              </label>
+
+              <label className="modal-field">
+                <input
+                  type="checkbox"
+                  checked={opts.showWatermark}
+                  onChange={(e) =>
+                    setOpts((o) => ({ ...o, showWatermark: e.target.checked }))
+                  }
+                />
+                Show watermark
               </label>
 
               <label className="modal-field-block">

@@ -11,6 +11,7 @@ export interface ExportOptions {
   withTheme: boolean;
   pageSize: PageSize;
   fontSize: number;
+  showWatermark: boolean;
 }
 
 import type { ReactNode } from "react";

@@ -215,7 +215,7 @@ export default function App() {
     formatDoc,
     openPalette: palette.toggle,
     exportPDF: () => setExportOpen(true),
-    saveDoc: saveAsMarkdown,
+    saveDoc: () => setExportOpen(true),
     toggleComment,
     duplicateLine,
     togglePreview: () => setShowPreview((v) => !v),
