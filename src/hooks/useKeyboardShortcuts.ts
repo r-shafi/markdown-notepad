@@ -6,6 +6,7 @@ export interface ShortcutMap {
   bold: Handler;
   italic: Handler;
   insertLink: Handler;
+  insertImage: Handler;
   insertCodeBlock: Handler;
   formatDoc: Handler;
   openPalette: Handler;
@@ -15,6 +16,7 @@ export interface ShortcutMap {
   duplicateLine: Handler;
   togglePreview: Handler;
   pasteAsPlainText: Handler;
+  openSettings: Handler;
   switchTheme: (index: number) => void;
 }
 
@@ -34,6 +36,11 @@ export function useKeyboardShortcuts(handlers: ShortcutMap) {
       if (key === "i" && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         handlers.italic();
+        return;
+      }
+      if (key === "i" && e.shiftKey) {
+        e.preventDefault();
+        handlers.insertImage();
         return;
       }
       if (key === "k" && e.shiftKey) {
@@ -86,8 +93,12 @@ export function useKeyboardShortcuts(handlers: ShortcutMap) {
         handlers.duplicateLine();
         return;
       }
+      if (key === "," && !e.shiftKey) {
+        e.preventDefault();
+        handlers.openSettings();
+        return;
+      }
 
-      // Ctrl+1..0 → switch theme 0–9
       const num = Number.parseInt(e.key, 10);
       if (!Number.isNaN(num)) {
         e.preventDefault();

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_THEME_ID, themes } from "../themes";
 import type { Theme } from "../types";
+import { loadGoogleFont } from "../utils/loadFont";
 import atomOneDarkCss from "highlight.js/styles/atom-one-dark.css?raw";
 import githubCss from "highlight.js/styles/github.css?raw";
 import solarizedDarkCss from "highlight.js/styles/base16/solarized-dark.css?raw";
@@ -31,7 +32,11 @@ export function useTheme() {
     }
     localStorage.setItem(STORAGE_KEY, themeId);
 
-    // Inject hljs theme CSS
+    if (theme.vars["--font-body"]) loadGoogleFont(theme.vars["--font-body"]);
+    if (theme.vars["--font-heading"])
+      loadGoogleFont(theme.vars["--font-heading"]);
+    if (theme.vars["--font-code"]) loadGoogleFont(theme.vars["--font-code"]);
+
     let styleEl = document.getElementById("hljs-theme-style");
     if (!styleEl) {
       styleEl = document.createElement("style");
