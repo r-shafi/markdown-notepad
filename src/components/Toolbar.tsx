@@ -1,4 +1,13 @@
-import { BookOpen, Command, Download, Settings, WrapText } from "lucide-react";
+import {
+  BookOpen,
+  Command,
+  Download,
+  Link2,
+  Settings,
+  Unlink2,
+  WrapText,
+} from "lucide-react";
+import { memo } from "react";
 import type { Theme } from "../types";
 
 interface ToolbarProps {
@@ -11,10 +20,12 @@ interface ToolbarProps {
   onToggleSettings: () => void;
   showPreview: boolean;
   onTogglePreview: () => void;
+  syncScroll: boolean;
+  onToggleSyncScroll: () => void;
   isMobile: boolean;
 }
 
-export default function Toolbar({
+export default memo(function Toolbar({
   themes,
   themeId,
   onThemeChange,
@@ -24,6 +35,8 @@ export default function Toolbar({
   onToggleSettings,
   showPreview,
   onTogglePreview,
+  syncScroll,
+  onToggleSyncScroll,
   isMobile,
 }: ToolbarProps) {
   return (
@@ -54,6 +67,19 @@ export default function Toolbar({
         >
           <Settings size={16} />
         </button>
+        {!isMobile && (
+          <button
+            className="toolbar-btn"
+            title={syncScroll ? "Detach scroll sync" : "Attach scroll sync"}
+            onClick={onToggleSyncScroll}
+          >
+            {syncScroll ? (
+              <Link2 size={16} />
+            ) : (
+              <Unlink2 size={16} opacity={0.4} />
+            )}
+          </button>
+        )}
         {!isMobile && (
           <button
             className="toolbar-btn"
@@ -92,4 +118,4 @@ export default function Toolbar({
       </div>
     </header>
   );
-}
+});

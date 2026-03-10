@@ -5,11 +5,10 @@ import type Token from "markdown-it/lib/token.mjs";
 import type Renderer from "markdown-it/lib/renderer.mjs";
 import footnote from "markdown-it-footnote";
 import deflist from "markdown-it-deflist";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 
 type RenderRule = NonNullable<Renderer["rules"][string]>;
 
-// Configure markdown-it with full feature set
 const md: MarkdownIt = new MarkdownIt({
   html: true,
   linkify: true,
@@ -27,9 +26,7 @@ const md: MarkdownIt = new MarkdownIt({
           `<code class="hljs language-${lang}">${highlighted}</code>` +
           `<button class="copy-btn" data-code="${escapedCode}" title="Copy">Copy</button></pre>`
         );
-      } catch {
-        // fall through
-      }
+      } catch {}
     }
     return (
       `<pre class="hljs-pre"><code class="hljs">` +
@@ -39,11 +36,9 @@ const md: MarkdownIt = new MarkdownIt({
   },
 });
 
-// Enable plugins
 md.use(footnote);
 md.use(deflist);
 
-// Open external links in _blank
 const defaultRender: RenderRule =
   md.renderer.rules.link_open ??
   ((
@@ -69,7 +64,6 @@ md.renderer.rules.link_open = (
   return defaultRender(tokens, idx, options, env, self);
 };
 
-// Task list support: replace [ ] and [x]
 function processTaskList(html: string) {
   return html
     .replace(
@@ -86,22 +80,30 @@ interface PreviewProps {
   content: string;
   scrollRatio: number;
   id?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  syncScroll?: boolean;
 }
 
-export default function Preview({ content, scrollRatio, id }: PreviewProps) {
+export default memo(function Preview({
+  content,
+  scrollRatio,
+  id,
+  fontFamily,
+  fontSize,
+  syncScroll = true,
+}: PreviewProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const raw = md.render(content);
-  const html = processTaskList(raw);
+  const html = useMemo(() => processTaskList(md.render(content)), [content]);
 
-  // Sync scroll position from editor
   useEffect(() => {
+    if (!syncScroll) return;
     const el = ref.current;
     if (!el) return;
     const max = el.scrollHeight - el.clientHeight;
     el.scrollTop = scrollRatio * max;
-  }, [scrollRatio]);
+  }, [scrollRatio, syncScroll]);
 
-  // Handle copy buttons for code blocks
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -124,12 +126,22 @@ export default function Preview({ content, scrollRatio, id }: PreviewProps) {
   }, []);
 
   return (
-    <div id={id} ref={ref} className="preview-pane">
+    <div
+      id={id}
+      ref={ref}
+      className="preview-pane"
+      style={
+        {
+          "--font-body": fontFamily,
+          "--font-heading": fontFamily,
+          fontSize: fontSize ? `${fontSize}px` : undefined,
+        } as React.CSSProperties
+      }
+    >
       <div
         className="preview-content"
-        // biome-ignore reason: controlled sanitized HTML from markdown-it
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
   );
-}
+});

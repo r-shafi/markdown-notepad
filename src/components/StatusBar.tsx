@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 interface StatusBarProps {
   line: number;
   col: number;
@@ -5,7 +7,7 @@ interface StatusBarProps {
   charCount: number;
 }
 
-export default function StatusBar({
+export default memo(function StatusBar({
   line,
   col,
   wordCount,
@@ -29,4 +31,4 @@ export default function StatusBar({
       </a>
     </div>
   );
-}
+});

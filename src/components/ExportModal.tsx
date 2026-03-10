@@ -28,7 +28,6 @@ export default function ExportModal({
   const [loading, setLoading] = useState(false);
   const [thumbnail, setThumbnail] = useState<string | null>(null);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -41,7 +40,6 @@ export default function ExportModal({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  // Generate preview thumbnail when modal opens
   useEffect(() => {
     if (!open) {
       setThumbnail(null);
@@ -59,13 +57,11 @@ export default function ExportModal({
     if (!el) return;
     setLoading(true);
 
-    // Save original styles so we can restore after capture
     const origFontSize = el.style.fontSize;
     const origHeight = el.style.height;
     const origMaxHeight = el.style.maxHeight;
     const origOverflow = el.style.overflow;
 
-    // Apply export font size and expand to full scroll height
     el.style.fontSize = `${opts.fontSize}px`;
     el.style.height = "auto";
     el.style.maxHeight = "none";
@@ -94,33 +90,68 @@ export default function ExportModal({
 
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentW = pageW - margin * 2;
+      const contentH = pageH - margin * 2;
       const bgColor = opts.withTheme
         ? getComputedStyle(document.documentElement)
             .getPropertyValue("--bg-primary")
             .trim()
         : "#ffffff";
 
-      // Scale image width to page width; compute proportional height
-      const imgW = pageW;
-      const imgH = (canvas.height * pageW) / canvas.width;
+      const imgW = contentW;
 
-      // Height of one full page in canvas pixels
-      const pageCanvasH = (pageH * canvas.width) / pageW;
+      const pageCanvasH = (contentH * canvas.width) / contentW;
 
-      // Slice the canvas into page-sized chunks
-      const totalPages = Math.ceil(imgH / pageH);
+      const fullCtx = canvas.getContext("2d", { willReadFrequently: true });
+
+      function isBlankRow(y: number): boolean {
+        if (!fullCtx || y < 0 || y >= canvas.height) return false;
+        const row = fullCtx.getImageData(0, y, canvas.width, 1).data;
+        const r0 = row[0],
+          g0 = row[1],
+          b0 = row[2];
+        for (let i = 4; i < row.length; i += 4) {
+          if (row[i] !== r0 || row[i + 1] !== g0 || row[i + 2] !== b0)
+            return false;
+        }
+        return true;
+      }
+
+      function findBreakPoint(idealY: number): number {
+        const searchRange = Math.round(pageCanvasH * 0.15);
+        for (let offset = 0; offset < searchRange; offset++) {
+          const above = idealY - offset;
+          if (above > 0 && isBlankRow(above)) return above;
+          const below = idealY + offset;
+          if (below < canvas.height && isBlankRow(below)) return below;
+        }
+        return idealY;
+      }
+
+      const breakPoints: number[] = [0];
+      let cursor = 0;
+      while (cursor < canvas.height) {
+        const ideal = cursor + pageCanvasH;
+        if (ideal >= canvas.height) {
+          breakPoints.push(canvas.height);
+          break;
+        }
+        const bp = findBreakPoint(Math.round(ideal));
+        breakPoints.push(bp);
+        cursor = bp;
+      }
+
+      const totalPages = breakPoints.length - 1;
       for (let page = 0; page < totalPages; page++) {
         if (page > 0) pdf.addPage();
 
-        // Fill entire page with background color
         pdf.setFillColor(bgColor);
         pdf.rect(0, 0, pageW, pageH, "F");
 
-        // Calculate source region in canvas pixels for this page
-        const srcY = page * pageCanvasH;
-        const srcH = Math.min(pageCanvasH, canvas.height - srcY);
+        const srcY = breakPoints[page];
+        const srcH = breakPoints[page + 1] - srcY;
 
-        // Create a per-page canvas with just this page's slice
         const pageCanvas = document.createElement("canvas");
         pageCanvas.width = canvas.width;
         pageCanvas.height = Math.round(srcH);
@@ -140,8 +171,8 @@ export default function ExportModal({
         );
 
         const pageImgData = pageCanvas.toDataURL("image/png");
-        const sliceH = (srcH * pageW) / canvas.width;
-        pdf.addImage(pageImgData, "PNG", 0, 0, imgW, sliceH);
+        const sliceH = (srcH * contentW) / canvas.width;
+        pdf.addImage(pageImgData, "PNG", margin, margin, imgW, sliceH);
 
         pdf.setFontSize(7);
         pdf.setTextColor(150, 150, 150);
@@ -157,7 +188,6 @@ export default function ExportModal({
       pdf.save(`${filename}.pdf`);
       onExportComplete?.();
     } finally {
-      // Restore original styles
       el.style.fontSize = origFontSize;
       el.style.height = origHeight;
       el.style.maxHeight = origMaxHeight;
@@ -193,7 +223,6 @@ export default function ExportModal({
             </div>
 
             <div className="modal-body">
-              {/* Preview thumbnail */}
               {thumbnail && (
                 <div className="export-thumbnail">
                   <img src={thumbnail} alt="Document preview" />
